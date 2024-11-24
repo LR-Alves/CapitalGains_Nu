@@ -5,10 +5,10 @@ import com.nu.capitalgains.api.app.dto.TaxResponse;
 
 import java.util.List;
 
-public interface TaxUseCase  {
+public interface TaxUseCase {
 
 
-    List<TaxResponse> calculateTaxes(List<OperationRequest> operations);
+    List<List<TaxResponse>> calculateTaxes(List<List<OperationRequest>> operations);
 
 
 }

@@ -1,4 +1,11 @@
 package com.nu.capitalgains.api.app.dto;
 
-public record OperationRequest(String operation, double unitCost, int quantity) {}
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record OperationRequest(String operation,
+                               @JsonProperty("unit-cost")
+                               double unitCost,
+                               int quantity) {
+
+}
 

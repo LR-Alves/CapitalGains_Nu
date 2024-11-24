@@ -9,7 +9,6 @@ import com.nu.capitalgains.api.domain.service.TaxCalculatorService;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class TaxCalculatorUseCase implements TaxUseCase {
 
     private final TaxCalculatorService taxCalculatorService;
@@ -19,46 +18,60 @@ public class TaxCalculatorUseCase implements TaxUseCase {
     }
 
     @Override
-    public List<TaxResponse> calculateTaxes(List<OperationRequest> requests) {
+    public List<List<TaxResponse>> calculateTaxes(List<List<OperationRequest>> operations) {
         try {
-            validateRequests(requests); // Validação das entradas
-            return processOperations(requests); // Processamento principal
+            validateRequests(operations);  // Validação das entradas
+            return processOperations(operations);  // Processamento das operações
         } catch (IllegalArgumentException e) {
-            throw e; // Repassa exceções conhecidas
+            throw e;  // Repassa exceções conhecidas
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao calcular impostos: " + e.getMessage(), e); // Exceções inesperadas
+            throw new RuntimeException("Erro ao calcular impostos: " + e.getMessage(), e);  // Exceções inesperadas
         }
     }
 
-    private void validateRequests(List<OperationRequest> requests) {
-        if (requests == null || requests.isEmpty()) {
-            throw new IllegalArgumentException("A lista de operações não pode ser nula ou vazia.");
+    // Ajustando para receber List<List<OperationRequest>> (múltiplas listas de operações)
+    private void validateRequests(List<List<OperationRequest>> operations) {
+
+
+        if (operations == null || operations.isEmpty()) {
+            throw new IllegalArgumentException("Nenhuma lista de operações fornecida.");
         }
-        for (OperationRequest request : requests) {
-            if (request.operation() == null || request.unitCost() <= 0 || request.quantity() <= 0) {
-                throw new IllegalArgumentException("Operação inválida: " + request);
+        for (List<OperationRequest> operationList : operations) {
+            if (operationList == null || operationList.isEmpty()) {
+                throw new IllegalArgumentException("Uma das listas de operações está vazia.");
+            }
+            for (OperationRequest request : operationList) {
+                if (request.operation() == null || request.unitCost() <= 0 || request.quantity() <= 0) {
+                    throw new IllegalArgumentException("Operação inválida: " + request);
+                }
             }
         }
     }
 
-    private List<TaxResponse> processOperations(List<OperationRequest> requests) {
-        double totalQuantity = 0;
-        double totalCost = 0;
-        List<TaxResponse> responses = new ArrayList<>();
+    // Alterando para processar múltiplas listas de operações
+    private List<List<TaxResponse>> processOperations(List<List<OperationRequest>> operations) {
+        List<List<TaxResponse>> allResponses = new ArrayList<>();
 
-        for (OperationRequest request : requests) {
-            if ("buy".equalsIgnoreCase(request.operation())) {
-                totalCost += request.unitCost() * request.quantity();
-                totalQuantity += request.quantity();
-                responses.add(new TaxResponse(0.0)); // Compras não geram imposto
-            } else if ("sell".equalsIgnoreCase(request.operation())) {
-                responses.add(processSellOperation(request, totalQuantity, totalCost));
-                totalQuantity -= request.quantity();
-            } else {
-                throw new IllegalArgumentException("Tipo de operação inválida: " + request.operation());
+        for (List<OperationRequest> requests : operations) {
+            List<TaxResponse> responses = new ArrayList<>();
+            double totalQuantity = 0;
+            double totalCost = 0;
+
+            for (OperationRequest request : requests) {
+                if ("buy".equalsIgnoreCase(request.operation())) {
+                    totalCost += request.unitCost() * request.quantity();
+                    totalQuantity += request.quantity();
+                    responses.add(new TaxResponse(0.0)); // Compras não geram imposto
+                } else if ("sell".equalsIgnoreCase(request.operation())) {
+                    responses.add(processSellOperation(request, totalQuantity, totalCost));
+                    totalQuantity -= request.quantity();
+                } else {
+                    throw new IllegalArgumentException("Tipo de operação inválida: " + request.operation());
+                }
             }
+            allResponses.add(responses);  // Adiciona os resultados para a lista de operações
         }
-        return responses;
+        return allResponses;
     }
 
     private TaxResponse processSellOperation(OperationRequest request, double totalQuantity, double totalCost) {

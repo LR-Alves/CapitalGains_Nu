@@ -20,7 +20,8 @@ public class TaxController {
     private TaxUseCase taxUseCase;
 
     @PostMapping
-    public ResponseEntity<List<TaxResponse>> calculateTaxes(@RequestBody List<OperationRequest> operations) {
+    public ResponseEntity<List<List<TaxResponse>>> calculateTaxes(@RequestBody List<List<OperationRequest>> operations) {
         return ResponseEntity.ok(taxUseCase.calculateTaxes(operations));
     }
+
 }
