@@ -9,6 +9,7 @@ import com.nu.capitalgains.api.domain.service.TaxCalculatorService;
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class TaxCalculatorUseCase implements TaxUseCase {
 
     private final TaxCalculatorService taxCalculatorService;
@@ -19,68 +20,55 @@ public class TaxCalculatorUseCase implements TaxUseCase {
 
     @Override
     public List<List<TaxResponse>> calculateTaxes(List<List<OperationRequest>> operations) {
-        try {
-            validateRequests(operations);  // Validação das entradas
-            return processOperations(operations);  // Processamento das operações
-        } catch (IllegalArgumentException e) {
-            throw e;  // Repassa exceções conhecidas
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao calcular impostos: " + e.getMessage(), e);  // Exceções inesperadas
-        }
-    }
+        validateRequests(operations); // Valida as listas de operações
 
-    // Ajustando para receber List<List<OperationRequest>> (múltiplas listas de operações)
-    private void validateRequests(List<List<OperationRequest>> operations) {
-
-
-        if (operations == null || operations.isEmpty()) {
-            throw new IllegalArgumentException("Nenhuma lista de operações fornecida.");
-        }
-        for (List<OperationRequest> operationList : operations) {
-            if (operationList == null || operationList.isEmpty()) {
-                throw new IllegalArgumentException("Uma das listas de operações está vazia.");
-            }
-            for (OperationRequest request : operationList) {
-                if (request.operation() == null || request.unitCost() <= 0 || request.quantity() <= 0) {
-                    throw new IllegalArgumentException("Operação inválida: " + request);
-                }
-            }
-        }
-    }
-
-    // Alterando para processar múltiplas listas de operações
-    private List<List<TaxResponse>> processOperations(List<List<OperationRequest>> operations) {
         List<List<TaxResponse>> allResponses = new ArrayList<>();
 
-        for (List<OperationRequest> requests : operations) {
-            List<TaxResponse> responses = new ArrayList<>();
-            double totalQuantity = 0;
-            double totalCost = 0;
+        for (List<OperationRequest> operationList : operations) {
+            // Converte a lista de OperationRequest para uma lista de Operation
+            List<Operation> domainOperations = operationList.stream()
+                    .map(request -> new Operation(request.operation(), request.unitCost(), request.quantity()))
+                    .toList();
 
-            for (OperationRequest request : requests) {
-                if ("buy".equalsIgnoreCase(request.operation())) {
-                    totalCost += request.unitCost() * request.quantity();
-                    totalQuantity += request.quantity();
-                    responses.add(new TaxResponse(0.0)); // Compras não geram imposto
-                } else if ("sell".equalsIgnoreCase(request.operation())) {
-                    responses.add(processSellOperation(request, totalQuantity, totalCost));
-                    totalQuantity -= request.quantity();
-                } else {
-                    throw new IllegalArgumentException("Tipo de operação inválida: " + request.operation());
-                }
-            }
-            allResponses.add(responses);  // Adiciona os resultados para a lista de operações
+            // Calcula os impostos utilizando o TaxCalculatorService
+            List<Double> taxes = taxCalculatorService.calculateTaxes(domainOperations);
+
+            // Converte a lista de impostos para TaxResponse
+            List<TaxResponse> responses = taxes.stream()
+                    .map(TaxResponse::new)
+                    .toList();
+
+            allResponses.add(responses);
         }
+
         return allResponses;
     }
 
-    private TaxResponse processSellOperation(OperationRequest request, double totalQuantity, double totalCost) {
-        if (totalQuantity <= 0) {
-            throw new IllegalArgumentException("Venda inválida: quantidade insuficiente no inventário.");
+    private void validateRequests(List<List<OperationRequest>> operations) {
+        // Validação genérica de entrada
+        if (operations == null || operations.isEmpty()) {
+            throw new IllegalArgumentException("Lista de operações não pode ser nula ou vazia.");
         }
-        double averageCost = totalCost / totalQuantity;
-        double tax = taxCalculatorService.calculateTax(
-                new Operation(request.operation(), request.unitCost(), request.quantity()), averageCost);
-        return new TaxResponse(tax);
+
+        for (List<OperationRequest> operationList : operations) {
+            if (operationList == null || operationList.isEmpty()) {
+                throw new IllegalArgumentException("Cada lista de operações deve conter pelo menos uma operação.");
+            }
+
+            for (OperationRequest request : operationList) {
+                if (request.operation() == null || request.operation().isBlank()) {
+                    throw new IllegalArgumentException("O tipo de operação não pode ser nulo ou vazio.");
+                }
+                if (request.unitCost() <= 0) {
+                    throw new IllegalArgumentException("O custo unitário deve ser maior que zero.");
+                }
+                if (request.quantity() <= 0) {
+                    throw new IllegalArgumentException("A quantidade deve ser maior que zero.");
+                }
+            }
+        }
     }
 }
+
+
+
